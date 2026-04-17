@@ -11,7 +11,7 @@ templates = Jinja2Templates(directory=os.path.join(base_dir, "templates"))
 
 @app.get("/", response_class=HTMLResponse)
 async def read_item(request: Request):
-    welcome_msg = "[첫 번째 배포] AWS fastAPI에 방문하여 주셔서 감사합니다."
+    welcome_msg = "[두 번째 배포 중입니다] AWS fastAPI에 방문하여 주셔서 감사합니다."
     
     # [핵심 수정] 최신 버전의 FastAPI/Starlette 대응
     # 1. request를 첫 번째 인자(또는 키워드 인자)로 명시합니다.
