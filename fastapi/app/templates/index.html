@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FastAPI | EKS App Response</title>
+    <style>
+      :root {
+        /* 이전 index.html과 동일한 기본 색상 시스템 */
+        --bg-color: #f4f7f6;
+        --aws-squid-ink: #232f3e;
+        --aws-smile-orange: #ff9900;
+
+        /* FastAPI 전용 포인트 컬러 (Teal) */
+        --fastapi-teal: #05998b;
+        --fastapi-bg: #ffffff;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background-color: var(--bg-color);
+        margin: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        color: var(--aws-squid-ink);
+      }
+
+      .card {
+        background-color: var(--fastapi-bg);
+        padding: 3rem 2rem;
+        border-radius: 15px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        text-align: center;
+        max-width: 500px;
+        width: 90%;
+        /* 상단 포인트를 FastAPI 컬러로 변경하여 NGINX 버전과 구분 */
+        border-top: 6px solid var(--fastapi-teal);
+        position: relative;
+        transition: transform 0.3s ease;
+      }
+
+      .card:hover {
+        transform: translateY(-5px);
+      }
+
+      .logo-container {
+        margin-bottom: 2rem;
+      }
+
+      .logo {
+        width: 140px;
+        height: auto;
+        /* FastAPI 로고에 어울리는 부드러운 그림자 */
+        filter: drop-shadow(0 4px 6px rgba(5, 153, 139, 0.2));
+      }
+
+      .api-badge {
+        background-color: rgba(5, 153, 139, 0.1);
+        color: var(--fastapi-teal);
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: bold;
+        display: inline-block;
+        margin-bottom: 1.5rem;
+        border: 1px solid rgba(5, 153, 139, 0.2);
+      }
+
+      h1 {
+        color: #333;
+        font-size: 1.5rem;
+        font-weight: 600;
+        line-height: 1.6;
+        margin: 0;
+        word-break: keep-all;
+      }
+
+      .divider {
+        height: 1px;
+        background: linear-gradient(to right, transparent, #eee, transparent);
+        margin: 2rem 0;
+      }
+
+      .info-text {
+        font-size: 0.9rem;
+        color: #888;
+        margin-top: 1.5rem;
+      }
+
+      .aws-tag {
+        color: var(--aws-smile-orange);
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="api-badge">FastAPI Response</div>
+
+      <div class="logo-container">
+        <img
+          src="https://fastapi.tiangolo.com/img/logo-margin/logo-teal.png"
+          alt="FastAPI"
+          class="logo"
+        />
+      </div>
+
+      <div class="divider"></div>
+
+      <h1>{{ message }}</h1>
+
+      <p class="info-text">
+        Serving from <span class="aws-tag">AWS EKS</span> Cluster
+      </p>
+    </div>
+  </body>
+</html>

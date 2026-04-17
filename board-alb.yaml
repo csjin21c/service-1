@@ -1,0 +1,189 @@
+# Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: board  # 생성하려는 네임스페이스 이름
+  labels:
+    name: board
+---
+# Deployment: fastapi-jinja-deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-board-deployment
+  namespace: board
+  labels:
+    app: app-board
+spec:
+  replicas: 3 # 노드가 3개이므로 가용성을 위해 3으로 설정 (권장)
+  selector:
+    matchLabels:
+      app: app-board-pod
+  template:
+    metadata:
+      labels:
+        app: app-board-pod
+    spec:
+      containers:
+        - name: app-board-container
+          image: csjin21c/fastapi:proxy-v1
+          imagePullPolicy: Always # 항상 최신 이미지 사용 (개발 단계에서는 유용)
+          ports:
+            - containerPort: 8000
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "200m"
+              memory: "256Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-board-svc # Ingress에서 참조할 서비스 이름
+  namespace: board
+spec:
+  # ClusterIP: 클러스터 내부 통신용 (ALB Ingress가 이 서비스를 바라봄)
+  type: ClusterIP
+  selector:
+    app: app-board-pod
+  ports:
+    - protocol: TCP
+      port: 8000 # 서비스 포트
+      targetPort: 8000 # 컨테이너 포트
+---
+# Deployment: nginx-deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: front-board-deployment
+  namespace: board
+  labels:
+    app: front-board
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: front-board-pod
+  template:
+    metadata:
+      labels:
+        app: front-board-pod
+    spec:
+      initContainers:
+        - name: wait-for-backend
+          image: busybox:1.28
+          command: ['sh', '-c', "until nslookup app-board-svc.board.svc.cluster.local; do echo waiting for backend; sleep 2; done"]
+      containers:
+        - name: front-board-container
+          image: csjin21c/nginx:proxy-v1
+          imagePullPolicy: Always # 항상 최신 이미지 사용 (개발 단계에서는 유용)
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: "100m" # HPA 측정을 위한 필수 설정(nginx, 100m~500m)
+              memory: "128Mi"
+            limits:
+              cpu: "250m" # requests의 2.5배(nginx)
+              memory: "256Mi"
+---
+# 2. Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: front-board-svc
+  namespace: board
+spec:
+  type: ClusterIP
+  selector:
+    app: front-board-pod
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+---
+# Ingress Loadbalancer
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: board-alb-ingress
+  namespace: board
+  annotations: # 주석: k8s가 알아보기위한 주석
+    # [AWS에서만]Ingress Grouping: board 인그레스와 auth 인그레스에 각각 동일하게 설정
+    alb.ingress.kubernetes.io/group.name: "ian-shared-alb"
+    # ALB 리소스에 Name 태그 및 기타 커스텀 태그 부여
+    alb.ingress.kubernetes.io/tags: Name=ian-ex10-alb,Owner=ian,Environment=dev,Project=MSP06
+    # 기존 보안 그룹 ID를 직접 지정 (여러 개일 경우 쉼표로 구분)
+    alb.ingress.kubernetes.io/security-groups: sg-04125d4719b972358
+    # internet-facing: 외부 로드밸런서 / internal: 내부 로드밸런서
+    alb.ingress.kubernetes.io/scheme: internet-facing # ALB의 스킴을 인터넷으로 설정
+    # ip: AWS 공식 권장, IP 주소를 대상으로 하는 타겟 그룹 생성(ALB-->POD)
+    # instance: EC2 인스턴스를 대상(NodePort)으로 하는 타겟 그룹 생성(ALB-->NodePort-->POD)
+    alb.ingress.kubernetes.io/target-type: ip # ALB가 IP 주소를 대상으로 사용하도록 설정
+    # HTTP 및 HTTPS 리스너 설정
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}, {"HTTPS": 443}]' # 리스너의 포트번호
+    # ACM 인증서 ARN 입력
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-south-1:626635419731:certificate/d4066af1-385c-4880-a558-f34825c79d6d
+    # HTTP 접속 시 HTTPS로 자동 리다이렉트 (선택 사항이지만 권장)
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+spec:
+  ingressClassName: alb # ALB Ingress Controller가 이 Ingress 리소스를 처리하도록 지정
+  rules:
+    - http:
+        paths: # 복잡한 경로를 위쪽에 배치하여 우선순위 설정
+          - path: /board
+            pathType: Prefix
+            backend:
+              service:
+                name: front-board-svc # Ingress가 트래픽을 라우팅할 서비스 이름
+                port:
+                  number: 80
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: front-board-svc # Ingress가 트래픽을 라우팅할 서비스 이름
+                port:
+                  number: 80
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: app-board-hpa
+  namespace: board
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: app-board-deployment
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu # 오토스케일링(Scaling)의 기준이 되는 자원을 CPU로 지정합니다.
+        target:
+          type: Utilization # 백분율(%)을 기준으로 삼겠다는 의미
+          averageUtilization: 50
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: front-board-hpa
+  namespace: board
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: front-board-deployment
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu # 오토스케일링(Scaling)의 기준이 되는 자원을 CPU로 지정합니다.
+        target:
+          type: Utilization # 백분율(%)을 기준으로 삼겠다는 의미
+          averageUtilization: 50
