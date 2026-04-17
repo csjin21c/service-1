@@ -26,7 +26,7 @@ spec:
     spec:
       containers:
         - name: app-board-container
-          image:  csjin21c/fastapi:proxy-va124ea7
+          image:   csjin21c/fastapi:proxy-v241c3bf
           imagePullPolicy: Always # 항상 최신 이미지 사용 (개발 단계에서는 유용)
           ports:
             - containerPort: 8000
@@ -77,7 +77,7 @@ spec:
           command: ['sh', '-c', "until nslookup app-board-svc.board.svc.cluster.local; do echo waiting for backend; sleep 2; done"]
       containers:
         - name: front-board-container
-          image:  csjin21c/nginx:proxy-va124ea7
+          image:   csjin21c/nginx:proxy-v241c3bf
           imagePullPolicy: Always # 항상 최신 이미지 사용 (개발 단계에서는 유용)
           ports:
             - containerPort: 80
